@@ -1,0 +1,14 @@
+0.36:  Thu Jan 13 07:16:08 EST 2005
+   - jettero better docs
+
+0.35:  Wed Jan 12 19:58:11 EST 2005
+   - jettero added a huge amount of documentation
+
+0.34:  Wed Jan 12 16:27:12 EST 2005
+   - jettero added some equivalence overloads
+
+0.33:  Wed Jan 12 15:21:46 EST 2005
+   - jettero add some num/str eq overloads
+
+0.32:  Wed Jan 12 15:12:24 EST 2005
+   - jettero made this
