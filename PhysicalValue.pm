@@ -20,7 +20,7 @@ use overload
     'eq' => \&pv_str_eq,
     '""' => \&pv_print;
 
-our $VERSION        = "0.39";
+our $VERSION        = "0.41";
 our $StrictTypes    = 0; # throws errors on unknown units
 our $PrintPrecision = 2; 
 our $fmt;
@@ -190,6 +190,12 @@ sub pv_num_eq {
         croak $e;
     }
 
+    unless( $lhs->[0] == $v ) {
+        $v = "$v";  # This is a really stupid hack... but it sometimes fixes things like 19e27 != 1.9e+28 ... dumb
+                    # I'm afraid that it's throwing away a lot of precision... but then again, hopefully we aren't relying
+                    # on == too much for floats...
+    }
+
     return $lhs->[0] == $v;
 }
 # }}}
@@ -283,10 +289,24 @@ sub pv_print {
     my $this = shift;
     my ($v, $u) = @$this;
 
-    # $v = bstr $v;
+    return "$v $u" if $PrintPrecision < 0;
 
+    # temprary fix until I hear back from the Number::Format guy
+
+    my $f = join(" ", $fmt->format_number( $v, $PrintPrecision ), $u);
+    if( $f =~ m/^\S*e/ ) {
+        $f = "$v $u";
+        $f =~ s/e\+(\d+)/e$1/g;
+    }
+    return $f;
+
+    # original numbers
+
+=cut
     return "$v $u" if $PrintPrecision < 0;
     return join(" ", $fmt->format_number( $v, $PrintPrecision ), $u);
+=cut
+
 }
 # }}}
 
@@ -465,10 +485,10 @@ sub new {
     my $unit  = shift;
     my $this  = bless {unit=>1}, $class;
 
-    if( $unit =~ m/[^a-z]/ ) {
+    if( $unit =~ m/[^a-zA-Z]/i ) {
         my %unities = ();
 
-        while( $unit =~ m/([a-z]+)/g ) {
+        while( $unit =~ m/([a-zA-Z]+)/g ) {
             my $xxu = "xx$1";
             unless( $unities{$xxu} ) {
                 $unities{$xxu} = symbols($xxu);
@@ -477,7 +497,7 @@ sub new {
 
         my $obj;
 
-        $unit =~ s/([a-z]+)/\$unities{"xx$1"}/g;
+        $unit =~ s/([a-zA-Z]+)/\$unities{"xx$1"}/g;
         $unit = "\$obj = $unit";
 
         eval $unit;
@@ -489,7 +509,7 @@ sub new {
 
         $this->{unit} = $obj;
 
-    } elsif( $unit =~ m/[a-z]/ ) {
+    } elsif( $unit =~ m/[a-zA-Z]/ ) {
         $this->{unit} = symbols("xx$unit");
 
     }
