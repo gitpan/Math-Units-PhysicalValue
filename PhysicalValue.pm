@@ -20,7 +20,7 @@ use overload
     'eq' => \&pv_str_eq,
     '""' => \&pv_print;
 
-our $VERSION        = "0.41";
+our $VERSION        = "0.45";
 our $StrictTypes    = 0; # throws errors on unknown units
 our $PrintPrecision = 2; 
 our $fmt;
@@ -64,6 +64,13 @@ sub new {
     }
 
     return $this;
+}
+# }}}
+# deunit {{{
+sub deunit {
+    my $this = shift;
+
+    return $this->[0];
 }
 # }}}
 
@@ -289,14 +296,21 @@ sub pv_print {
     my $this = shift;
     my ($v, $u) = @$this;
 
-    return "$v $u" if $PrintPrecision < 0;
+    if( $u->{unit} == 1 ) {
+        $u = "";
+    } else {
+        $u = " $u";
+    }
+
+    return $v . $u if $PrintPrecision < 0;
 
     # temprary fix until I hear back from the Number::Format guy
 
-    my $f = join(" ", $fmt->format_number( $v, $PrintPrecision ), $u);
+    my $f = join('', $fmt->format_number( $v, $PrintPrecision ), $u);
     if( $f =~ m/^\S*e/ ) {
-        $f = "$v $u";
+        $f = $v . $u;
         $f =~ s/e\+(\d+)/e$1/g;
+        $f =~ s/^([\.\-\d]+)(?=e)/$fmt->format_number( $1, $PrintPrecision )/e if $PrintPrecision >= 0;
     }
     return $f;
 
@@ -307,6 +321,26 @@ sub pv_print {
     return join(" ", $fmt->format_number( $v, $PrintPrecision ), $u);
 =cut
 
+}
+# }}}
+# sci {{{
+sub sci {
+    my $this   = shift;
+    my $digits = shift;
+    my ($v, $u) = @$this;
+    my $e = int( log($v) / log(10) );
+
+    if( $u->{unit} == 1 ) {
+        $u = "";
+    } else {
+        $u = " $u";
+    }
+
+    croak "please use 0 or more sigfigs..." if $digits < 0;
+
+    $v = $fmt->format_number($v / (10 ** $e), $digits-1) . "e$e";
+
+    return $v . $u;
 }
 # }}}
 
@@ -403,6 +437,12 @@ lastly, you can set all sorts of format settings like so:
 
 Though, at this time, there's no way to change which format function it uses.
 
+=head2 deunit()
+
+If you want to get the numerical value back out, you can use deunit();
+
+    my $v = deunit PV("8 miles"); # makes $v = 8;
+
 =head1 AUTHOR
 
 Jettero Heller <japh@voltar-confed.org>
@@ -438,7 +478,7 @@ Here's a list of things I'd still like to do.
 
 If you'd like to add a couple, please float me an email.
 
-1) Significant digit support
+1) Significant digit support (until it's done, there is $value->sci( $digits ))
 2) Error interval support
 *) Better handling of metric units (e.g, 3g == 0.003kg == 3000mg)
 
