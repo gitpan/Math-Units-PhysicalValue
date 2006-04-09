@@ -2,26 +2,28 @@ package Math::Units::PhysicalValue;
 
 use strict;
 use Carp;
-use base qw(Exporter); our @EXPORT_OK = qw(PV);
+use base qw(Exporter); 
 use Math::Units qw(convert);
 use Number::Format;
 use overload 
-    '+'  => \&pv_add,
-    '*'  => \&pv_mul,
-    '**' => \&pv_mulmul,
-    '-'  => \&pv_sub,
-    '/'  => \&pv_div,
-    '++' => \&pv_inc,
-    '--' => \&pv_dec,
-    '==' => \&pv_num_eq,
-    '<'  => \&pv_num_lt,
-    '>'  => \&pv_num_gt,
-    '<=' => \&pv_num_lte,
-    '>=' => \&pv_num_gte,
-    'eq' => \&pv_str_eq,
-    '""' => \&pv_print;
+    '+'    => \&pv_add,
+    '*'    => \&pv_mul,
+    '**'   => \&pv_mulmul,
+    'sqrt' => \&pv_sqrt,
+    '-'    => \&pv_sub,
+    '/'    => \&pv_div,
+    '++'   => \&pv_inc,
+    '--'   => \&pv_dec,
+    '=='   => \&pv_num_eq,
+    '<'    => \&pv_num_lt,
+    '>'    => \&pv_num_gt,
+    '<='   => \&pv_num_lte,
+    '>='   => \&pv_num_gte,
+    'eq'   => \&pv_str_eq,
+    '""'   => \&pv_print,
+    'bool' => \&pv_bool;
 
-our $VERSION        = "0.46";
+our $VERSION        = "0.51";
 our $StrictTypes    = 0; # throws errors on unknown units
 our $PrintPrecision = 2; 
 our $fmt;
@@ -29,6 +31,16 @@ our $fmt;
 
 1;
 
+our @EXPORT_OK = qw(PV G);
+# constants {{{
+# I'm going to build up a library of these before I go anywhere near documenting them.
+# If you find this, and would like to contribute, email me.
+
+# Though, this interface could be a really stupid idea and I might take it out entirely.
+
+sub G { Math::Units::PhysicalValue->new( "6.672e-11 N m^2 / kg^2" ) }
+
+# }}}
 # PV {{{
 sub PV {
     my $v = shift;
@@ -36,17 +48,22 @@ sub PV {
     return Math::Units::PhysicalValue->new( $v );
 }
 # }}}
+
 # new {{{
 sub new {
     my $class = shift;
     my $value = shift;
     my $this  = bless [], $class;
 
-    if( $value =~ m/^([\-\,\.\de]+)\s*(\S*)$/ ) {
+    $value = 0 unless defined $value;
+
+    if( $value =~ m/^\s*([\-\,\.\de]+)\s*([\s\w\^\d\.\/\*]*)$/ ) {
         my ($v, $u) = ($1, $2);
 
         $v =~ s/\,//g;
         $u =~ s/\^/**/g;
+        $u =~ s/(\w+(?:\*\*\d+)?)\s+(\w+(?:\*\*\d+)?)/$1*$2/g;
+        $u =~ s/\s//g;
 
         if ( $StrictTypes ) {
             eval { convert(3.1415926, $u, '') };
@@ -79,7 +96,7 @@ sub deunit {
 sub pv_add {
     my ($lhs, $rhs) = @_; 
     
-    $rhs = ref($lhs)->new($rhs) unless ref $rhs eq ref $lhs;
+    $rhs = ref($lhs)->new($rhs eq "0" ? "0 $lhs->[1]" : $rhs) unless ref $rhs eq ref $lhs;
 
     my $v; 
     eval {
@@ -126,6 +143,18 @@ sub pv_mulmul {
     return bless [ $v, $u ], ref $lhs;
 }
 # }}}
+# pv_sqrt {{{
+sub pv_sqrt {
+    my ($lhs) = @_; 
+
+    my ($v, $u) = (@$lhs);
+
+    $v = sqrt( $v );
+    $u = sqrt( $u );
+
+    return bless [ $v, $u ], ref $lhs;
+}
+# }}}
 # pv_div {{{
 sub pv_div {
     my ($lhs, $rhs) = @_;
@@ -145,7 +174,7 @@ sub pv_div {
 sub pv_sub {
     my ($lhs, $rhs) = @_;
 
-    $rhs = ref($lhs)->new($rhs) unless ref $rhs eq ref $lhs;
+    $rhs = ref($lhs)->new($rhs eq "0" ? "0 $lhs->[1]" : $rhs) unless ref $rhs eq ref $lhs;
 
     return $lhs->pv_add( $rhs->pv_mul(-1) );
 }
@@ -338,12 +367,21 @@ sub pv_print {
 
 }
 # }}}
+# pv_bool {{{
+sub pv_bool {
+    my $this = shift;
+    my ($v, $u) = @$this;
+
+    return $v;
+}
+# }}}
 # sci {{{
 sub sci {
     my $this   = shift;
     my $digits = shift;
     my ($v, $u) = @$this;
-    my $e = int( log($v) / log(10) );
+    my $e = 0;
+       $e = int( log($v) / log(10) ) unless $v == 0;
 
     if( $u->{unit} == 1 ) {
         $u = "";
@@ -458,6 +496,19 @@ If you want to get the numerical value back out, you can use deunit();
 
     my $v = deunit PV("8 miles"); # makes $v = 8;
 
+=head1 0 + PV or 0 - PV
+
+I introduced a special hack on 12/7/5 to allow you to add ANY PV
+unit to 0 iff 0 had no units previously.  That is:
+
+    my $v = 0 + PV("3 ft"); # sets $v = PV("3 ft");
+
+This functions by converting the scalar 0 to 0 ft before adding.
+If you wish to make sure to raise an error on addition to 0,
+choose to PV the 0 first.
+
+   my $v = PV(0) + PV("3 ft"); # will still raise an error
+
 =head1 AUTHOR
 
 Jettero Heller <japh@voltar-confed.org>
@@ -495,6 +546,8 @@ If you'd like to add a couple, please float me an email.
 
 1) Significant digit support (until it's done, there is $value->sci( $digits ))
 2) Error interval support
+3) PV(0) + PV("9 m/s") should not cause an error imo
+4) (PV("7 m/s") ** 9) ** (1/9) should produce '7 m/s', not an error
 *) Better handling of metric units (e.g, 3g == 0.003kg == 3000mg)
 
 Concerning metric units, I expected them to work much worse than they do.  In
@@ -532,6 +585,7 @@ use overload
     '/'  => \&au_div,
     '*'  => \&au_mul,
     '**' => \&au_mulmul,
+  'sqrt' => \&au_sqrt,
     'eq' => \&au_eq,
     '""' => \&au_print;
 
@@ -587,6 +641,13 @@ sub au_mulmul {
     croak "right hand side must be a scalar" if ref($rhs);
 
     return bless { unit=>($lhs->{unit} ** $rhs) }, ref $lhs;
+}
+# }}}
+# au_sqrt {{{
+sub au_sqrt {
+    my ($lhs) = @_;
+
+    return bless { unit=>sqrt($lhs->{unit}) }, ref $lhs;
 }
 # }}}
 # au_div {{{
