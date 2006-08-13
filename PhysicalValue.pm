@@ -20,27 +20,27 @@ use overload
     '<='   => \&pv_num_lte,
     '>='   => \&pv_num_gte,
     'eq'   => \&pv_str_eq,
+    'ne'   => \&pv_str_ne,
     '""'   => \&pv_print,
+    '<=>'  => \&pv_ncmp,
+    'cmp'  => \&pv_scmp,
     'bool' => \&pv_bool;
 
-our $VERSION        = "0.51";
+our $VERSION        = "0.67";
 our $StrictTypes    = 0; # throws errors on unknown units
 our $PrintPrecision = 2; 
 our $fmt;
     $fmt = new Number::Format if not defined $fmt;
 
-1;
-
 our @EXPORT_OK = qw(PV G);
-# constants {{{
-# I'm going to build up a library of these before I go anywhere near documenting them.
-# If you find this, and would like to contribute, email me.
+our @AUTO_PLURALS = ();
 
-# Though, this interface could be a really stupid idea and I might take it out entirely.
+# NOTE:  AUTO_PLURALS and G are not documented because they are still experimental
+
+1;
 
 sub G { Math::Units::PhysicalValue->new( "6.672e-11 N m^2 / kg^2" ) }
 
-# }}}
 # PV {{{
 sub PV {
     my $v = shift;
@@ -73,6 +73,8 @@ sub new {
                 croak $e;
             }
         }
+
+        $u =~ s/\b$_->[1]\b/$_->[0]/sg for @AUTO_PLURALS;
 
         $this->[0] = $v;
         $this->[1] = new Math::Units::PhysicalValue::AutoUnit $u;
@@ -157,9 +159,10 @@ sub pv_sqrt {
 # }}}
 # pv_div {{{
 sub pv_div {
-    my ($lhs, $rhs) = @_;
+    my ($lhs, $rhs, $assbackwards) = @_;
 
     $rhs = ref($lhs)->new($rhs) unless ref $rhs eq ref $lhs;
+    return $rhs / $lhs if $assbackwards;
 
     my ($v, $u) = (@$lhs);
 
@@ -172,9 +175,10 @@ sub pv_div {
 
 # pv_sub {{{
 sub pv_sub {
-    my ($lhs, $rhs) = @_;
+    my ($lhs, $rhs, $assbackwards) = @_;
 
     $rhs = ref($lhs)->new($rhs eq "0" ? "0 $lhs->[1]" : $rhs) unless ref $rhs eq ref $lhs;
+    return ($rhs - $lhs) if $assbackwards;
 
     return $lhs->pv_add( $rhs->pv_mul(-1) );
 }
@@ -223,6 +227,30 @@ sub pv_str_eq {
     return "$lhs" eq "$rhs";
 }
 # }}}
+# pv_str_ne {{{
+sub pv_str_ne {
+    my ($lhs, $rhs) = @_;
+
+    $rhs = ref($lhs)->new($rhs) unless ref $rhs eq ref $lhs;
+
+    my $v;
+    eval {
+        $v = convert(@$rhs, $lhs->[1]);
+    };
+
+    $rhs->[0] = $v;
+    $rhs->[1] = $lhs->[1];
+
+    if( $@ ) {
+        my $e = $@;
+        $e =~ s/'1'/''/;
+        $e =~ s/ at .*PhysicalValue.*//s;
+        croak $e;
+    }
+
+    return "$lhs" ne "$rhs";
+}
+# }}}
 # pv_num_eq {{{
 sub pv_num_eq {
     my ($lhs, $rhs) = @_;
@@ -252,9 +280,10 @@ sub pv_num_eq {
 # }}}
 # pv_num_lt {{{
 sub pv_num_lt {
-    my ($lhs, $rhs) = @_;
+    my ($lhs, $rhs, $assbackwards) = @_;
 
     $rhs = ref($lhs)->new($rhs) unless ref $rhs eq ref $lhs;
+    return $rhs < $lhs if $assbackwards;
 
     my $v;
     eval {
@@ -273,9 +302,10 @@ sub pv_num_lt {
 # }}}
 # pv_num_gt {{{
 sub pv_num_gt {
-    my ($lhs, $rhs) = @_;
+    my ($lhs, $rhs, $assbackwards) = @_;
 
     $rhs = ref($lhs)->new($rhs) unless ref $rhs eq ref $lhs;
+    return $rhs > $lhs if $assbackwards;
 
     my $v;
     eval {
@@ -294,9 +324,10 @@ sub pv_num_gt {
 # }}}
 # pv_num_lte {{{
 sub pv_num_lte {
-    my ($lhs, $rhs) = @_;
+    my ($lhs, $rhs, $assbackwards) = @_;
 
     $rhs = ref($lhs)->new($rhs) unless ref $rhs eq ref $lhs;
+    return $rhs <= $lhs if $assbackwards;
 
     my $v;
     eval {
@@ -315,9 +346,10 @@ sub pv_num_lte {
 # }}}
 # pv_num_gte {{{
 sub pv_num_gte {
-    my ($lhs, $rhs) = @_;
+    my ($lhs, $rhs, $assbackwards) = @_;
 
     $rhs = ref($lhs)->new($rhs) unless ref $rhs eq ref $lhs;
+    return $rhs >= $lhs if $assbackwards;
 
     my $v;
     eval {
@@ -344,6 +376,9 @@ sub pv_print {
         $u = "";
     } else {
         $u = " $u";
+        if( $v != 1 ) {
+            $u =~ s/\b$_->[0]\b/$_->[1]/sg for @AUTO_PLURALS;
+        }
     }
 
     return $v . $u if $PrintPrecision < 0;
@@ -373,6 +408,30 @@ sub pv_bool {
     my ($v, $u) = @$this;
 
     return $v;
+}
+# }}}
+# pv_ncmp {{{
+sub pv_ncmp {
+    my ($lhs, $rhs, $assbackwards) = @_;
+
+    $rhs = ref($lhs)->new($rhs) unless ref $rhs eq ref $lhs;
+    return $rhs <=> $lhs if $assbackwards;
+
+    return -1 if $lhs < $rhs;
+    return  1 if $lhs > $rhs;
+    return 0;
+}
+# }}}
+# pv_scmp {{{
+sub pv_scmp {
+    my ($lhs, $rhs, $assbackwards) = @_;
+
+    $rhs = ref($lhs)->new($rhs) unless ref $rhs eq ref $lhs;
+    return $rhs cmp $lhs if $assbackwards;
+
+    return -1 if "$lhs" lt "$rhs";
+    return  1 if "$lhs" gt "$rhs";
+    return 0;
 }
 # }}}
 # sci {{{
