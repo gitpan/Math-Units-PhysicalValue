@@ -1,3 +1,5 @@
+# $Id: PhysicalValue.pm 731.16385.CwC3kaV/K7cW2/xNnjLe2iz7HhY 2007-03-05 13:17:27 -0500 $
+
 package Math::Units::PhysicalValue;
 
 use strict;
@@ -26,7 +28,7 @@ use overload
     'cmp'  => \&pv_scmp,
     'bool' => \&pv_bool;
 
-our $VERSION        = "0.67";
+our $VERSION        = "0.68";
 our $StrictTypes    = 0; # throws errors on unknown units
 our $PrintPrecision = 2; 
 our $fmt;
@@ -269,13 +271,7 @@ sub pv_num_eq {
         croak $e;
     }
 
-    unless( $lhs->[0] == $v ) {
-        $v = "$v";  # This is a really stupid hack... but it sometimes fixes things like 19e27 != 1.9e+28 ... dumb
-                    # I'm afraid that it's throwing away a lot of precision... but then again, hopefully we aren't relying
-                    # on == too much for floats...
-    }
-
-    return $lhs->[0] == $v;
+    return sprintf('%f', $lhs->[0]) == sprintf('%f', $v);  # I'm not happy about this, but it works 3/5/7
 }
 # }}}
 # pv_num_lt {{{
