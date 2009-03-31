@@ -1,5 +1,4 @@
 # vi:set syntax=perl:
-# $Id: Makefile.PL 15.353.2EFvkwaFwns6Ik/ezhN1F8h08v0 2007-11-05 07:33:24 -0500 $
 
 use ExtUtils::MakeMaker;
 
@@ -12,4 +11,16 @@ WriteMakefile(
         'Math::Algebra::Symbols' => 0,
         'Math::BigFloat'         => 0,
     },
+
+    ($ExtUtils::MakeMaker::VERSION ge '6.48'? 
+        (MIN_PERL_VERSION => 5.008,
+            META_MERGE => {
+                keywords => [qw(units)],
+                resources=> {
+                    repository => 'http://github.com/jettero/pv/tree',
+                },
+            },
+
+        LICENSE	=> 'lgpl2',
+    ) : ()),
 );

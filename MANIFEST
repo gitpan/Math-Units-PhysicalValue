@@ -3,7 +3,6 @@ PhysicalValue.pm
 t/01_load.t
 t/05_skydiving.t
 Changes
-META.yml
 README
 MANIFEST
 t/10_metric.t
@@ -19,3 +18,6 @@ t/55_exponents.t
 t/40_some_standard_values.t
 t/60_plurals.t
 t/49_assbackwards.t
+lib/Math/Units/PhysicalValue/AutoUnit.pm
+lib/Math/Units/PhysicalValue.pod
+META.yml                                 Module meta-data (added by MakeMaker)
