@@ -13,14 +13,14 @@ WriteMakefile(
     },
 
     ($ExtUtils::MakeMaker::VERSION ge '6.48'? 
-        (MIN_PERL_VERSION => 5.008,
+        (MIN_PERL_VERSION => 5.006001,
             META_MERGE => {
                 keywords => [qw(units)],
                 resources=> {
-                    repository => 'http://github.com/jettero/pv/tree',
+                    repository => 'http://github.com/jettero/pv/',
                 },
             },
 
-        LICENSE	=> 'lgpl2',
+        LICENSE	=> 'LGPL',
     ) : ()),
 );

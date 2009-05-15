@@ -1,9 +1,9 @@
 --- #YAML:1.0
 name:               Math-Units-PhysicalValue
-version:            1.0005
+version:            1.0007
 abstract:           ~
 author:  []
-license:            lgpl2
+license:            LGPL
 distribution_type:  module
 configure_requires:
     ExtUtils::MakeMaker:  0
@@ -14,9 +14,9 @@ requires:
     Math::BigFloat:       0
     Math::Units:          0
     Number::Format:       0
-    perl:                 5.008
+    perl:                 5.006001
 resources:
-    repository:  http://github.com/jettero/pv/tree
+    repository:  http://github.com/jettero/pv/
 no_index:
     directory:
         - t
